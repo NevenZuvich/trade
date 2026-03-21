@@ -14,7 +14,7 @@ features = ['Open', 'High', 'Low', 'Close', 'Volume', 'Return', 'SMA_5', 'SMA_10
 X = df[features]
 y = df['Target']
 
-X_train, X_test, y_train, y_test = ttsplit(X, y, test_size=0.2, shuffle=False, random_state=42)
+X_train, X_test, y_train, y_test = ttsplit(X, y, test_size=0.2, shuffle=False)
 
 model = xbgr(objective='reg:squarederror', n_estimators=100)
 model.fit(X_train, y_train)
