@@ -5,30 +5,37 @@ import sys
 sys.path.insert(1, '.')
 
 def download_data(tickers, start=None, end=None, period='1mo', interval='1d', cache_dir="temp_cache", overwrite=False):
+    
     if isinstance(tickers, str): tickers = [tickers]
+    os.makedirs(cache_dir, exist_ok=True)
     
     for ticker in tickers:
-        os.makedirs(cache_dir, exist_ok=True)
-        path = os.path.join(cache_dir, f"{ticker}_{start}_{end}.csv")
+
+        ticker = ticker.upper()
+        
         if os.path.exists(path) and not overwrite:
             print(f"Saved data for {ticker} is already cached at {path}.")
         else:
             print(f"Caching data for {ticker} at {path}.")
+
             try:
                 if start and end:
                     data = yf.download(tickers=ticker, start=start, end=end, interval=interval)
+                    filename = f"{ticker}_{start}_{end}_{interval}.csv"
                 else:
                     data = yf.download(tickers=ticker, period=period, interval=interval)
+                    filename = f"{ticker}_{period}_{interval}.csv"
 
-                if data.empty: # dont know why this has error
+                if data is None or data.empty:
                     raise ValueError(f"No data found for {ticker}")
             
+                path = os.path.join(cache_dir, filename)
                 data.to_csv(path)
                 print(f"Saved data for {ticker} to cache at {path}")
             except Exception as e:
                 print(f"Error fetching data for {ticker}: {e}")
-
-
+        
+        
 
 def load_data(ticker='SPY', start=None, end=None, cache_dir="temp_cache"):    
     os.makedirs(cache_dir, exist_ok=True)
