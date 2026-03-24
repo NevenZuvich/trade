@@ -1,6 +1,5 @@
 import os
 from joblib import dump
-from base_models.linear import linear_model
 
 def train_model():
     models = {

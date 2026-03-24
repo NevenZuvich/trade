@@ -2,6 +2,7 @@ import yfinance as yf
 import pandas as pd
 import os
 import sys
+from sklearn.decomposition import PCA
 sys.path.insert(1, '.')
 
 def download_data(tickers, start=None, end=None, period='1mo', interval='1d', cache_dir="temp_cache", overwrite=False):
@@ -13,8 +14,12 @@ def download_data(tickers, start=None, end=None, period='1mo', interval='1d', ca
 
         ticker = ticker.upper()
         
-        if os.path.exists(path) and not overwrite:
-            print(f"Saved data for {ticker} is already cached at {path}.")
+        path = os.path.join(cache_dir, f"{ticker}_{start}_{end}.csv")
+        if os.path.exists(path):
+            if not overwrite:
+                print(f"Saved data for {ticker} is already cached at {path}. Cancelling download.")
+                return
+            print(f"Saved data for {ticker} is already cached at {path}. Overwriting...")
         else:
             print(f"Caching data for {ticker} at {path}.")
 
@@ -35,14 +40,13 @@ def download_data(tickers, start=None, end=None, period='1mo', interval='1d', ca
             except Exception as e:
                 print(f"Error fetching data for {ticker}: {e}")
         
-        
 
 def load_data(ticker='SPY', start=None, end=None, cache_dir="temp_cache"):    
     os.makedirs(cache_dir, exist_ok=True)
     path = os.path.join(cache_dir, f"{ticker}_{start}_{end}.csv")
     if os.path.exists(path):
         try:
-            data = pd.read_csv(path, index_col=0, parse_dates=True)
+            data = pd.read_csv(path, index_col=0, parse_dates=False)
             print(f"Loaded cached data for {ticker}.")
             return data
         except Exception as _:
@@ -50,4 +54,40 @@ def load_data(ticker='SPY', start=None, end=None, cache_dir="temp_cache"):
     else:
         print(f"No cached data found for {ticker} at {path}.")
 
-# download_data(tickers=['SPY', 'AAPL'], start='2015-01-01', end='2025-01-01', interval='1d', overwrite=True)
+
+
+def prep_df(df):
+    # ensure data is numeric and remove NaN
+    df['Close'] = pd.to_numeric(df['Close'], errors='coerce')
+    df = df.dropna()
+
+    # feature engineering
+    df['Return'] = df['Close'].pct_change()
+    df['Ret_5'] = df['Close'].pct_change(5)
+    df['Ret_10'] = df['Close'].pct_change(10)
+    df['Vol_5'] = df['Return'].rolling(5).std()
+    df['Vol_10'] = df['Return'].rolling(10).std()
+    df['SMA_5'] = df['Close'].rolling(5).mean()
+    df['SMA_10'] = df['Close'].rolling(10).mean()
+    df['Lag'] = df['Close'].shift(1)
+    df['zscore_5'] = (df['Close'] - df['SMA_5']) / df['Return'].rolling(5).std()
+
+    # prediction target
+    df['Target'] = df['Return'].shift(-1)
+
+    df = df.dropna()
+    
+    return df
+
+
+def pca_transformer(df):
+    pca_obj = PCA() # no arguments
+    x_pca = pca_obj.fit_transform(df)
+    return x_pca
+
+
+
+def zscore_normalizer(df):
+    scaler = StandardScaler()
+    norm_df = scaler.transform(df)
+    return norm_df

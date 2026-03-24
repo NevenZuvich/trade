@@ -3,4 +3,4 @@ mcfam_example_code
 env.list
 temp_cache
 data
-# base_models/pretrained
+models/pretrained
