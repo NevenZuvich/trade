@@ -26,7 +26,7 @@ def download_data(tickers, start=None, end=None, period='1mo', interval='1d', ca
             try:
                 if start and end:
                     data = yf.download(tickers=ticker, start=start, end=end, interval=interval)
-                    filename = f"{ticker}_{start}_{end}_{interval}.csv"
+                    filename = f"{ticker}_{start}_{end}.csv"
                 else:
                     data = yf.download(tickers=ticker, period=period, interval=interval)
                     filename = f"{ticker}_{period}_{interval}.csv"
@@ -62,18 +62,31 @@ def prep_df(df):
     df = df.dropna()
 
     # feature engineering
-    df['Return'] = df['Close'].pct_change()
+    df['Ret_1'] = df['Close'].pct_change()
     df['Ret_5'] = df['Close'].pct_change(5)
     df['Ret_10'] = df['Close'].pct_change(10)
-    df['Vol_5'] = df['Return'].rolling(5).std()
-    df['Vol_10'] = df['Return'].rolling(10).std()
+    df['Ret_20'] = df['Close'].pct_change(20)
+    df['Ret_60'] = df['Close'].pct_change(60)
+
+    df['Vol_5'] = df['Ret_1'].rolling(5).std()
+    df['Vol_10'] = df['Ret_1'].rolling(10).std()
+
     df['SMA_5'] = df['Close'].rolling(5).mean()
     df['SMA_10'] = df['Close'].rolling(10).mean()
+    df['SMA_60'] = df['Close'].rolling(60).mean()
+    df['SMA_200'] = df['Close'].rolling(200).mean()
+
+    df['SMA_Cross'] = df['SMA_60'] - df['SMA_200']
+    df['SMA_Cross_Norm'] = df['SMA_60'] / df['SMA_200'] - 1
+
+    df['Trend_60'] = df['Close'] / df['SMA_60'] 
+    df['Trend_200'] = df['Close'] / df['SMA_200'] 
+
     df['Lag'] = df['Close'].shift(1)
-    df['zscore_5'] = (df['Close'] - df['SMA_5']) / df['Return'].rolling(5).std()
+    df['zscore_5'] = (df['Close'] - df['SMA_5']) / df['Ret_1'].rolling(5).std()
 
     # prediction target
-    df['Target'] = df['Return'].shift(-1)
+    df['Target'] = df['Close'].pct_change(10).shift(-10)
 
     df = df.dropna()
     

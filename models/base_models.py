@@ -1,7 +1,9 @@
 import pandas as pd
 import numpy as np
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, ElasticNet, Lasso
 from sklearn.metrics import root_mean_squared_error, mean_absolute_error
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import TimeSeriesSplit
 import sys
 sys.path.insert(1, '.')
 from data_helpers import prep_df, load_data, download_data
@@ -10,21 +12,23 @@ from data_helpers import prep_df, load_data, download_data
 
 def linear_model(df, target='Target', features=[], train_size=0.8):
 
-    X = df[features]
-    y = df[target]
+    df = df.copy()
 
     # train test split
     split_idx = int(len(df) * train_size)
+    train_df = df.iloc[:split_idx]
+    test_df = df.iloc[split_idx:]
 
-    # Assign X, y
-    X_train = X.iloc[:split_idx]
-    X_test = X.iloc[split_idx:]
+    # Fit the scaler only on training data and transform both train and test data
+    scaler = StandardScaler()
+    X_train = scaler.fit_transform(train_df[features])
+    X_test = scaler.transform(test_df[features])
 
-    y_train = y.iloc[:split_idx]
-    y_test = y.iloc[split_idx:]
+    y_train = train_df[target].values
+    y_test = test_df[target].values
 
     # set up model
-    model = LinearRegression()
+    model = ElasticNet()
     model.fit(X_train, y_train)
 
     # make predictions
@@ -38,17 +42,6 @@ def linear_model(df, target='Target', features=[], train_size=0.8):
 
     print(metrics)
     print('Movement Acc: ', ((np.sign(y_pred) == np.sign(y_test)).mean()*100).round(2),'%')
-    
-    df['Predictions'] = np.nan
-    df.loc[df.index[split_idx:], 'Prediction'] = y_pred
-    df['Position'] = np.sign(df['Prediction'])
-    df['Strategy_Return'] = df['Position'] * df['Target']
-    df['Cumul_Return'] = (1 + df['Strategy_Return']).cumprod()
-    df['Buy_Hold'] = (1 + df['Target']).cumprod()
-    df = df.dropna(subset=['Prediction', 'Target'])
-
-    print('Strategy return: ', df['Cumul_Return'].iloc[-1].round(2))
-    print('Buy/Hold: ', df['Buy_Hold'].iloc[-1].round(2))
 
     return model
     
@@ -60,5 +53,6 @@ df = load_data(ticker='AAPL', start='2015-01-01', end='2025-01-01')
 df = prep_df(df)
 linear_model(df, 
              target='Target', 
-             features= ['Return', 'Ret_5', 'Ret_10', 'Vol_5', 'zscore_5'], 
+             features= ['Ret_1', 'Ret_5', 'Ret_10', 'Ret_20', 'Ret_60', 'Vol_5', 
+                        'zscore_5', 'SMA_60', 'SMA_200', 'Trend_60'], 
              train_size=0.80)
